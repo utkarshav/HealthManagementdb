@@ -1,0 +1,389 @@
+		create database group1project1;
+		use group1project1;
+		
+
+	CREATE TABLE doctors (
+    doctor_id INT AUTO_INCREMENT,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    gender VARCHAR(10),
+    contact_number VARCHAR(15),
+    email VARCHAR(100),
+    specialization VARCHAR(100),
+    salary DECIMAL(10, 2),
+    PRIMARY KEY (doctor_id)
+	);
+
+	
+	CREATE TABLE blood_groups(
+			blood_group VARCHAR(5),
+			bg_id INT ,
+			CONSTRAINT bg_pk PRIMARY KEY(bg_id)
+	);
+	
+	INSERT INTO blood_groups (bg_id, blood_group) VALUES
+	(1, 'A+'),
+	(2, 'A-'),
+	(3, 'B+'),
+	(4, 'B-'),
+	(5, 'AB+'),
+	(6, 'AB-'),
+	(7, 'O+'),
+	(8, 'O-');
+	
+	
+	
+	
+
+	CREATE TABLE patients (
+    patient_id INT AUTO_INCREMENT ,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    gender VARCHAR(10),
+    date_of_birth DATE,
+    contact_number VARCHAR(15),
+    email VARCHAR(100),
+    city VARCHAR(50),
+    blood_group INT,
+	CONSTRAINT pt_pk PRIMARY KEY(patient_id),
+    CONSTRAINT pt_fk FOREIGN KEY (blood_group) REFERENCES blood_groups (bg_id) 
+);
+
+
+	CREATE TABLE online_users (
+	user_id INT AUTO_INCREMENT,
+	patient_id INT,
+    password VARCHAR(50),
+    registration_date DATE,
+	CONSTRAINT onl_pk  PRIMARY KEY(user_id),
+	CONSTRAINT onl_fk FOREIGN KEY(patient_id) REFERENCES patients (patient_id)
+	);
+    ALTER TABLE online_users 
+    auto_increment=20230001;
+	
+	
+		
+	CREATE TABLE appointments (
+    appointment_id INT AUTO_INCREMENT ,
+    patient_id INT,
+    doctor_id INT,
+    appointment_date DATETIME,
+	CONSTRAINT apt_pk PRIMARY KEY(appointment_id),
+    CONSTRAINT apt_fkpat FOREIGN KEY (patient_id) REFERENCES patients (patient_id),
+    CONSTRAINT apt_fkdoc FOREIGN KEY (doctor_id) REFERENCES doctors (doctor_id)
+	);
+
+
+
+
+
+
+
+
+
+CREATE TABLE prescriptions (
+    prescription_id INT AUTO_INCREMENT,
+    patient_id INT,
+    doctor_id INT,
+    prescription_date DATE,
+	diagnosis varchar(200),
+    medication VARCHAR(200),
+    dosage VARCHAR(100),
+	CONSTRAINT pres_fk PRIMARY KEY(prescription_id),
+    CONSTRAINT pres_fkpat FOREIGN KEY (patient_id) REFERENCES patients (patient_id) ,
+    CONSTRAINT pres_fkdoc FOREIGN KEY (doctor_id) REFERENCES doctors (doctor_id)
+	);
+	ALTER TABLE prescriptions
+	AUTO_INCREMENT = 202301;
+	
+	
+	CREATE TABLE medical_records (
+    record_id INT AUTO_INCREMENT,
+    patient_id INT,
+    doctor_id INT,
+    admission_date DATETIME,
+    diagnosis VARCHAR(200),
+    prescription_id INT,
+    CONSTRAINT pk_med_rec PRIMARY KEY (record_id),
+    FOREIGN KEY (patient_id) REFERENCES patients (patient_id),
+    FOREIGN KEY (doctor_id) REFERENCES doctors (doctor_id),
+    FOREIGN KEY (prescription_id) REFERENCES prescriptions (prescription_id)
+);
+ALTER TABLE medical_records
+AUTO_INCREMENT = 2000;
+
+
+
+
+
+DELIMITER //
+
+CREATE TRIGGER auto_email
+BEFORE INSERT ON doctors
+FOR EACH ROW
+BEGIN
+    
+    
+    SET NEW.email = CONCAT(LOWER(SUBSTR((NEW.first_name),1,3)), '.', LOWER(NEW.last_name), '@', 'hospital.in');
+END //
+
+
+
+DELIMITER //
+
+CREATE TRIGGER update_appointment
+AFTER INSERT ON patients
+FOR EACH ROW
+BEGIN
+    DECLARE pid INT;
+    DECLARE did INT;
+    DECLARE bdate DATE;
+
+    SELECT NEW.patient_id, NEW.date_of_birth INTO pid, bdate;
+
+    SELECT doctor_id INTO did
+    FROM doctors
+    ORDER BY RAND()
+    LIMIT 1;
+
+    INSERT INTO appointments (patient_id, appointment_date, doctor_id)
+    VALUES (pid, NOW(), did);
+
+    INSERT INTO online_users (patient_id, password, registration_date)
+	VALUES (pid, CONCAT(LOWER(SUBSTR(NEW.first_name, 1, 3)), LOWER(SUBSTR(NEW.last_name, -3, 3)), YEAR(bdate)), NOW());
+
+END //
+
+DELIMITER ;
+
+
+
+
+
+
+
+	DELIMITER //
+
+	CREATE PROCEDURE add_doctor(
+    IN p_first_name VARCHAR(50),
+    IN p_last_name VARCHAR(50),
+    IN p_gender VARCHAR(10),
+    IN p_contact_number VARCHAR(15),
+    IN p_specialization VARCHAR(100),
+    IN p_salary DECIMAL(10, 2)
+)
+BEGIN
+    INSERT INTO doctors (
+        first_name,
+        last_name,
+        gender,
+        contact_number,
+        specialization,
+        salary
+    )
+    VALUES (
+        p_first_name,
+        p_last_name,
+        p_gender,
+        p_contact_number,
+        p_specialization,
+        p_salary
+    );
+END //
+
+DELIMITER ;
+
+
+	
+DELIMITER //
+
+CREATE PROCEDURE modify_doctor(
+    IN p_doctor_id INT,
+    IN p_first_name VARCHAR(50),
+    IN p_last_name VARCHAR(50),
+    IN p_gender VARCHAR(10),
+    IN p_contact_number VARCHAR(15),
+    IN p_email VARCHAR(100),
+    IN p_specialization VARCHAR(100),
+    IN p_salary DECIMAL(10, 2)
+)
+BEGIN
+    UPDATE doctors
+    SET
+        first_name = p_first_name,
+        last_name = p_last_name,
+        gender = p_gender,
+        contact_number = p_contact_number,
+        email = p_email,
+        specialization = p_specialization,
+        salary = p_salary
+    WHERE
+        doctor_id = p_doctor_id;
+END //
+
+DELIMITER ;
+
+
+DELIMITER //
+
+CREATE PROCEDURE delete_doctor(
+    IN p_doctor_id INT
+)
+BEGIN
+    DELETE FROM doctors WHERE doctor_id = p_doctor_id;
+END //
+
+DELIMITER ;
+
+
+
+DELIMITER //
+CREATE PROCEDURE login_portal(
+    IN p_first_name VARCHAR(50),
+    IN p_last_name VARCHAR(50),
+    IN p_gender VARCHAR(10),
+    IN p_date_of_birth DATE,
+    IN p_contact_number VARCHAR(15),
+    IN p_email VARCHAR(100),
+    IN p_city VARCHAR(50),
+    IN p_blood_group INT
+)
+BEGIN
+    INSERT INTO patients (
+        first_name,
+        last_name,
+        gender,
+        date_of_birth,
+        contact_number,
+        email,
+        city,
+        blood_group
+    )
+    VALUES (
+        TRIM(p_first_name),
+        TRIM(p_last_name),
+        TRIM(p_gender),
+        TRIM(p_date_of_birth),
+        TRIM(p_contact_number),
+        TRIM(p_email),
+        TRIM(p_city),
+        TRIM(p_blood_group)
+    );
+END //
+
+DELIMITER ;
+	
+
+
+	DELIMITER //
+
+
+
+
+random value procedure same as above
+
+DELIMITER //
+
+CREATE PROCEDURE InsertPrescription(
+    IN in_prescription_date DATE,
+    IN in_diagnosis VARCHAR(200),
+    IN in_medication VARCHAR(200),
+    IN in_dosage VARCHAR(100)
+)
+BEGIN
+    DECLARE random_patient_id INT;
+	DECLARE random_doctor_id INT;
+    SET random_patient_id = FLOOR(RAND() * (20 - 1 + 1) + 1);  -- Generate a random value between 1 and 20
+
+	SET random_doctor_id = FLOOR(RAND() * (10 - 1 + 1) + 1);
+    INSERT INTO prescriptions (patient_id, doctor_id, prescription_date, diagnosis, medication, dosage)
+    VALUES (random_patient_id, random_doctor_id, in_prescription_date, in_diagnosis, in_medication, in_dosage);
+END //
+
+DELIMITER ;
+
+DELIMITER //
+
+CREATE TRIGGER insert_medical_record
+AFTER INSERT ON prescriptions
+FOR EACH ROW
+BEGIN
+    INSERT INTO medical_records (patient_id, doctor_id, admission_date, diagnosis, prescription_id)
+    VALUES (NEW.patient_id, NEW.doctor_id, NOW(), NEW.diagnosis, NEW.prescription_id);
+END //
+
+DELIMITER ;
+
+
+
+CALL add_doctor('Amit', 'Patel', 'Male', '9876543211', 'Dermatology', 40000.00);
+CALL add_doctor('Sneha', 'Kumar', 'Female', '9123456788', 'Orthopedics', 55000.00);
+CALL add_doctor('Rajesh', 'Shah', 'Male', '9988776654', 'Ophthalmology', 42000.00);
+CALL add_doctor('Neha', 'Reddy', 'Female', '9876543212', 'Psychiatry', 38000.00);
+CALL add_doctor('Sanjay', 'Verma', 'Male', '9123456787', 'Dentistry', 48000.00);
+CALL add_doctor('Anita', 'Singh', 'Female', '9988776653', 'ENT', 42000.00);
+CALL add_doctor('Vivek', 'Sharma', 'Male', '9876543213', 'General Surgery', 55000.00);
+CALL add_doctor('Shweta', 'Pandey', 'Female', '9123456786', 'Internal Medicine', 40000.00);
+CALL add_doctor('Rakesh', 'Rao', 'Male', '9988776652', 'Neurology', 48000.00);
+CALL add_doctor('Pooja', 'Gupta', 'Female', '9876543214', 'Cardiac Surgery', 60000.00);
+
+
+
+	
+	
+			
+CALL login_portal('Rahul', 'Gupta', 'Male', '1988-06-15', '9876543210', 'rahulgupta@example.com', 'Delhi', 1);
+
+CALL login_portal('Priya', 'Sharma', 'Female', '1993-02-25', '9876543211', 'priyasharma@example.com', 'Mumbai', 2);
+
+CALL login_portal('Amit', 'Patel', 'Male', '1985-11-12', '9876543212', 'amitpatel@example.com', 'Ahmedabad', 3);
+
+CALL login_portal('Neha', 'Verma', 'Female', '1990-09-05', '9876543213', 'nehaverma@example.com', 'Kolkata', 1);
+
+CALL login_portal('Rajesh', 'Singh', 'Male', '1982-03-28', '9876543214', 'rajeshsingh@example.com', 'Chennai', 2);
+
+CALL login_portal('Sneha', 'Reddy', 'Female', '1995-07-20', '9876543215', 'snehareddy@example.com', 'Hyderabad', 3);
+
+CALL login_portal('Vikram', 'Kumar', 'Male', '1987-04-10', '9876543216', 'vikramkumar@example.com', 'Bengaluru', 1);
+
+CALL login_portal('Anita', 'Joshi', 'Female', '1991-01-18', '9876543217', 'anitajoshi@example.com', 'Pune', 2);
+
+CALL login_portal('Sanjay', 'Chopra', 'Male', '1984-09-02', '9876543218', 'sanjaychopra@example.com', 'Jaipur', 3);
+
+CALL login_portal('Pooja', 'Rajput', 'Female', '1994-12-06', '9876543219', 'poojarajput@example.com', 'Lucknow', 1);
+
+CALL login_portal('Alok', 'Gandhi', 'Male', '1989-05-30', '9876543220', 'alokgandhi@example.com', 'Chandigarh', 2);
+
+CALL login_portal('Shreya', 'Chatterjee', 'Female', '1992-10-15', '9876543221', 'shreyachatterjee@example.com', 'Kolkata', 3);
+
+CALL login_portal('Aakash', 'Malhotra', 'Male', '1986-08-08', '9876543222', 'aakashmalhotra@example.com', 'Delhi', 1);
+
+CALL login_portal('Smita', 'Gupta', 'Female', '1990-03-22', '9876543223', 'smitagupta@example.com', 'Mumbai', 2);
+
+CALL login_portal('Rajat', 'Shah', 'Male', '1983-12-14', '9876543224', 'rajatshah@example.com', 'Ahmedabad', 3);
+
+CALL login_portal('Kavita', 'Rao', 'Female', '1994-06-27', '9876543225', 'kavitarao@example.com', 'Kolkata', 1);
+
+CALL login_portal('Vishal', 'Rajput', 'Male', '1988-02-05', '9876543226', 'vishalrajput@example.com', 'Chennai', 2);
+
+CALL login_portal('Divya', 'Sinha', 'Female', '1991-09-17', '9876543227', 'divyasinha@example.com', 'Hyderabad', 3);
+
+CALL login_portal('Sandeep', 'Agarwal', 'Male', '1985-05-01', '9876543228', 'sandeepagarwal@example.com', 'Bengaluru', 1);
+
+CALL login_portal('Anjali', 'Mehta', 'Female', '1993-11-08', '9876543229', 'anjalimehta@example.com', 'Pune', 2);
+
+
+
+
+CALL InsertPrescription('2023-05-24', 'Allergies', 'Medicine D', '1 tablet daily');
+CALL InsertPrescription('2023-05-25', 'Headache', 'Medicine A', '2 tablets twice a day');
+CALL InsertPrescription('2023-05-26', 'Cold', 'Medicine B', '1 tablet at night');
+CALL InsertPrescription('2023-05-27', 'Fever', 'Medicine C', '1 tablet every 6 hours');
+CALL InsertPrescription('2023-05-28', 'Back pain', 'Medicine E', '2 tablets daily');
+CALL InsertPrescription('2023-05-29', 'Insomnia', 'Medicine F', '1 tablet at bedtime');
+CALL InsertPrescription('2023-05-30', 'Allergies', 'Medicine G', '1 tablet twice a day');
+CALL InsertPrescription('2023-05-31', 'Headache', 'Medicine H', '1 tablet as needed');
+CALL InsertPrescription('2023-06-01', 'Stomachache', 'Medicine I', '1 tablet before meals');
+CALL InsertPrescription('2023-06-02', 'Cold', 'Medicine J', '1 tablet every 8 hours');
+
+
